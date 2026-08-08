@@ -1,38 +1,44 @@
 const Outcome = require("../models/Outcome");
 const Sequence = require("../models/Sequence");
 
-const { getSize } = require("../utils/classifier");
-const { processNewOutcome } = require("./analyzer");
+const { getSize } =
+  require("../utils/classifier");
 
-/*
-  Finds the largest overlap where:
+const {
+  processNewOutcome
+} = require("./analyzer");
 
-  existing ending:
-  [9, 7]
+function findOverlap(
+  existing,
+  incoming
+) {
+  const maxLength =
+    Math.min(
+      existing.length,
+      incoming.length
+    );
 
-  imported beginning:
-  [9, 7]
-
-  overlap = 2
-*/
-
-function findOverlap(existing, incoming) {
-  const maxLength = Math.min(
-    existing.length,
-    incoming.length
-  );
-
-  for (let length = maxLength; length > 0; length--) {
+  for (
+    let length = maxLength;
+    length > 0;
+    length--
+  ) {
     const existingPart =
-      existing.slice(existing.length - length);
+      existing.slice(
+        existing.length - length
+      );
 
     const incomingPart =
-      incoming.slice(0, length);
+      incoming.slice(
+        0,
+        length
+      );
 
-    const same = existingPart.every(
-      (value, index) =>
-        value === incomingPart[index]
-    );
+    const same =
+      existingPart.every(
+        (value, index) =>
+          value === incomingPart[index]
+      );
 
     if (same) {
       return length;
@@ -46,26 +52,27 @@ async function importOutcomes(
   datasetId,
   numbers
 ) {
-  const existing = await Outcome.find({
-    datasetId
-  })
-    .sort({
-      sequence: 1
+  const existing =
+    await Outcome.find({
+      datasetId
     })
-    .select("number sequence");
+      .sort({
+        sequence: 1
+      })
+      .select(
+        "number sequence"
+      );
 
   const existingNumbers =
-    existing.map(item => item.number);
+    existing.map(
+      item => item.number
+    );
 
-  /*
-    If this exact history is already present,
-    nothing will be added.
-  */
-
-  const overlap = findOverlap(
-    existingNumbers,
-    numbers
-  );
+  const overlap =
+    findOverlap(
+      existingNumbers,
+      numbers
+    );
 
   const newNumbers =
     numbers.slice(overlap);
@@ -75,7 +82,7 @@ async function importOutcomes(
       imported: 0,
       skipped: numbers.length,
       overlap,
-      message: "No new outcomes found."
+      results: []
     };
   }
 
@@ -85,11 +92,12 @@ async function importOutcomes(
     });
 
   if (!sequence) {
-    sequence = await Sequence.create({
-      datasetId,
-      nextSequence:
-        existing.length + 1
-    });
+    sequence =
+      await Sequence.create({
+        datasetId,
+        nextSequence:
+          existing.length + 1
+      });
   }
 
   const results = [];
@@ -104,10 +112,11 @@ async function importOutcomes(
 
         number,
 
-        size: getSize(number)
+        size:
+          getSize(number)
       });
 
-    sequence.nextSequence++;
+    sequence.nextSequence += 1;
 
     const analysis =
       await processNewOutcome(
@@ -117,16 +126,24 @@ async function importOutcomes(
 
     results.push({
       outcome,
-      event: analysis.event
+      event:
+        analysis.event,
+      stat:
+        analysis.stat
     });
   }
 
   await sequence.save();
 
   return {
-    imported: newNumbers.length,
-    skipped: overlap,
+    imported:
+      newNumbers.length,
+
+    skipped:
+      overlap,
+
     overlap,
+
     results
   };
 }
