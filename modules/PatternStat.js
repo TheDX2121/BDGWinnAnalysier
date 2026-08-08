@@ -1,4 +1,24 @@
+
 const mongoose = require("mongoose");
+
+const nextNumberSchema = new mongoose.Schema(
+  {
+    number: {
+      type: Number,
+      required: true,
+      min: 0,
+      max: 9
+    },
+
+    count: {
+      type: Number,
+      default: 0
+    }
+  },
+  {
+    _id: false
+  }
+);
 
 const patternStatSchema = new mongoose.Schema(
   {
@@ -46,8 +66,26 @@ const patternStatSchema = new mongoose.Schema(
     smallPercent: {
       type: Number,
       default: 0
+    },
+
+    /*
+      Exact next-number frequency
+
+      Example:
+
+      9-8:
+
+      1 → 5
+      4 → 2
+      7 → 3
+    */
+
+    nextNumbers: {
+      type: [nextNumberSchema],
+      default: []
     }
   },
+
   {
     timestamps: true
   }
