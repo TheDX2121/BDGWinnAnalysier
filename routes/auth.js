@@ -19,11 +19,6 @@ function createToken(user) {
   );
 }
 
-/*
-  REGISTER
-  POST /api/auth/register
-*/
-
 router.post("/register", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -38,7 +33,7 @@ router.post("/register", async (req, res) => {
     if (password.length < 6) {
       return res.status(400).json({
         success: false,
-        message: "Password must be at least 6 characters."
+        message: "Password must contain at least 6 characters."
       });
     }
 
@@ -46,11 +41,11 @@ router.post("/register", async (req, res) => {
       .trim()
       .toLowerCase();
 
-    const existingUser = await User.findOne({
+    const exists = await User.findOne({
       email: normalizedEmail
     });
 
-    if (existingUser) {
+    if (exists) {
       return res.status(409).json({
         success: false,
         message: "Account already exists."
@@ -71,16 +66,14 @@ router.post("/register", async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Account created.",
       token,
       user: {
         id: user._id,
         email: user.email
       }
     });
-
   } catch (error) {
-    console.error("Register error:", error);
+    console.error(error);
 
     res.status(500).json({
       success: false,
@@ -88,11 +81,6 @@ router.post("/register", async (req, res) => {
     });
   }
 });
-
-/*
-  LOGIN
-  POST /api/auth/login
-*/
 
 router.post("/login", async (req, res) => {
   try {
@@ -120,12 +108,12 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    const passwordCorrect = await bcrypt.compare(
+    const valid = await bcrypt.compare(
       password,
       user.passwordHash
     );
 
-    if (!passwordCorrect) {
+    if (!valid) {
       return res.status(401).json({
         success: false,
         message: "Invalid email or password."
@@ -136,16 +124,14 @@ router.post("/login", async (req, res) => {
 
     res.json({
       success: true,
-      message: "Login successful.",
       token,
       user: {
         id: user._id,
         email: user.email
       }
     });
-
   } catch (error) {
-    console.error("Login error:", error);
+    console.error(error);
 
     res.status(500).json({
       success: false,
