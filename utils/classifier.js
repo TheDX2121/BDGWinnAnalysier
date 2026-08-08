@@ -1,6 +1,5 @@
 function getSize(number) {
   if (
-    typeof number !== "number" ||
     !Number.isInteger(number) ||
     number < 0 ||
     number > 9
