@@ -22,9 +22,8 @@ router.get("/me", authMiddleware, async (req, res) => {
       success: true,
       user
     });
-
   } catch (error) {
-    console.error("User error:", error);
+    console.error(error);
 
     res.status(500).json({
       success: false,
