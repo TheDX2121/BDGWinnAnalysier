@@ -1,293 +1,214 @@
-const menuButton = document.getElementById("menuButton");
-const sideMenu = document.getElementById("sideMenu");
-const closeMenu = document.getElementById("closeMenu");
-const menuOverlay = document.getElementById("menuOverlay");
+const token =
+  localStorage.getItem("analyzerToken");
 
-const outcomeInput = document.getElementById("outcomeInput");
-const inputCount = document.getElementById("inputCount");
-const analyzeButton = document.getElementById("analyzeButton");
-
-const totalOutcomes = document.getElementById("totalOutcomes");
-const totalEvents = document.getElementById("totalEvents");
-
-const selectedPattern = document.getElementById("selectedPattern");
-const patternSelect = document.getElementById("patternSelect");
-
-const bigPercent = document.getElementById("bigPercent");
-const smallPercent = document.getElementById("smallPercent");
-
-const bigCount = document.getElementById("bigCount");
-const smallCount = document.getElementById("smallCount");
-
-const recentEvents = document.getElementById("recentEvents");
-const patternsGrid = document.getElementById("patternsGrid");
-
-/* ---------------------------
-   Menu
----------------------------- */
-
-function openMenu() {
-  sideMenu.classList.add("open");
-  menuOverlay.classList.add("show");
+if (!token) {
+  window.location.href = "/";
 }
 
-function closeSideMenu() {
-  sideMenu.classList.remove("open");
-  menuOverlay.classList.remove("show");
+const datasetSelect =
+  document.getElementById("datasetSelect");
+
+const outcomeInput =
+  document.getElementById("outcomeInput");
+
+const addBtn =
+  document.getElementById("addBtn");
+
+const statsContainer =
+  document.getElementById("stats");
+
+const logoutBtn =
+  document.getElementById("logoutBtn");
+
+const headers = {
+  "Authorization": `Bearer ${token}`,
+  "Content-Type": "application/json"
+};
+
+async function loadDatasets() {
+  const response = await fetch(
+    "/api/datasets",
+    {
+      headers
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message);
+  }
+
+  datasetSelect.innerHTML =
+    `<option value="">Select Dataset</option>`;
+
+  data.datasets.forEach(dataset => {
+
+    const option =
+      document.createElement("option");
+
+    option.value = dataset._id;
+    option.textContent = dataset.name;
+
+    datasetSelect.appendChild(option);
+  });
 }
 
-menuButton.addEventListener("click", openMenu);
-closeMenu.addEventListener("click", closeSideMenu);
-menuOverlay.addEventListener("click", closeSideMenu);
+async function loadStats(datasetId) {
+  if (!datasetId) {
+    statsContainer.textContent =
+      "Select a dataset.";
 
-/* ---------------------------
-   Parse outcomes
----------------------------- */
+    return;
+  }
 
-function parseOutcomes(value) {
-  return value
-    .split(/[\s,]+/)
-    .map(Number)
-    .filter(number =>
-      Number.isInteger(number) &&
-      number >= 0 &&
-      number <= 9
+  const response = await fetch(
+    `/api/analysis/${datasetId}/patterns`,
+    {
+      headers
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message);
+  }
+
+  statsContainer.innerHTML = "";
+
+  for (
+    let first = 0;
+    first <= 9;
+    first++
+  ) {
+
+    for (
+      let second = 0;
+      second <= 9;
+      second++
+    ) {
+
+      const stat =
+        data.stats.find(
+          item =>
+            item.first === first &&
+            item.second === second
+        );
+
+      const total =
+        stat?.total || 0;
+
+      const big =
+        stat?.bigPercent || 0;
+
+      const small =
+        stat?.smallPercent || 0;
+
+      const card =
+        document.createElement("div");
+
+      card.className = "stat";
+
+      card.innerHTML = `
+        <strong>${first}-${second}</strong>
+
+        <div>
+          Total: ${total}
+        </div>
+
+        <div>
+          Big: ${big}%
+        </div>
+
+        <div>
+          Small: ${small}%
+        </div>
+      `;
+
+      statsContainer.appendChild(card);
+    }
+  }
+}
+
+datasetSelect.addEventListener(
+  "change",
+  () => {
+    loadStats(
+      datasetSelect.value
     );
-}
-
-/* ---------------------------
-   Big / Small
----------------------------- */
-
-function getSize(number) {
-  return number >= 5 ? "Big" : "Small";
-}
-
-/* ---------------------------
-   Sliding window
----------------------------- */
-
-function generateEvents(numbers) {
-  const events = [];
-
-  for (let i = 0; i < numbers.length - 2; i++) {
-    const first = numbers[i];
-    const second = numbers[i + 1];
-    const next = numbers[i + 2];
-
-    events.push({
-      first,
-      second,
-      next,
-      type: getSize(next)
-    });
   }
+);
 
-  return events;
-}
+addBtn.addEventListener(
+  "click",
+  async () => {
 
-/* ---------------------------
-   Input counter
----------------------------- */
+    const datasetId =
+      datasetSelect.value;
 
-outcomeInput.addEventListener("input", () => {
-  const numbers = parseOutcomes(outcomeInput.value);
-
-  inputCount.textContent =
-    `${numbers.length} outcome${numbers.length === 1 ? "" : "s"}`;
-});
-
-/* ---------------------------
-   Analyze
----------------------------- */
-
-analyzeButton.addEventListener("click", () => {
-  const numbers = parseOutcomes(outcomeInput.value);
-
-  if (numbers.length < 3) {
-    alert("Please enter at least 3 outcomes.");
-    return;
-  }
-
-  const events = generateEvents(numbers);
-
-  totalOutcomes.textContent = numbers.length;
-  totalEvents.textContent = events.length;
-
-  renderRecentEvents(events);
-  renderPatterns(events);
-});
-
-/* ---------------------------
-   Recent events
----------------------------- */
-
-function renderRecentEvents(events) {
-  recentEvents.innerHTML = "";
-
-  const recent = events.slice(-10).reverse();
-
-  recent.forEach(event => {
-    const item = document.createElement("div");
-
-    item.className = "event";
-
-    item.innerHTML = `
-      <span class="event-sequence">
-        ${event.first}-${event.second}
-        → ${event.next}
-      </span>
-
-      <span class="event-type">
-        ${event.type}
-      </span>
-    `;
-
-    recentEvents.appendChild(item);
-  });
-}
-
-/* ---------------------------
-   Pattern statistics
----------------------------- */
-
-function buildPatternStats(events) {
-  const stats = {};
-
-  events.forEach(event => {
-    const key = `${event.first}-${event.second}`;
-
-    if (!stats[key]) {
-      stats[key] = {
-        total: 0,
-        big: 0,
-        small: 0
-      };
+    if (!datasetId) {
+      alert("Select a dataset first.");
+      return;
     }
 
-    stats[key].total++;
+    const numbers =
+      outcomeInput.value
+        .split(",")
+        .map(value => Number(value.trim()))
+        .filter(value => !Number.isNaN(value));
 
-    if (event.type === "Big") {
-      stats[key].big++;
-    } else {
-      stats[key].small++;
+    if (!numbers.length) {
+      alert("Enter outcomes first.");
+      return;
     }
-  });
 
-  return stats;
-}
+    addBtn.disabled = true;
 
-/* ---------------------------
-   Render patterns
----------------------------- */
+    try {
 
-function renderPatterns(events) {
-  const stats = buildPatternStats(events);
+      const response =
+        await fetch(
+          `/api/outcomes/${datasetId}`,
+          {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              numbers
+            })
+          }
+        );
 
-  patternsGrid.innerHTML = "";
+      const data =
+        await response.json();
 
-  Object.keys(stats)
-    .sort((a, b) => {
-      const [a1, a2] = a.split("-").map(Number);
-      const [b1, b2] = b.split("-").map(Number);
+      if (!response.ok) {
+        throw new Error(data.message);
+      }
 
-      return (a1 * 10 + a2) - (b1 * 10 + b2);
-    })
-    .forEach(pattern => {
-      const data = stats[pattern];
+      outcomeInput.value = "";
 
-      const big = (data.big / data.total) * 100;
-      const small = (data.small / data.total) * 100;
+      await loadStats(datasetId);
 
-      const item = document.createElement("div");
+    } catch (error) {
+      alert(error.message);
+    }
 
-      item.className = "pattern-item";
+    addBtn.disabled = false;
+  }
+);
 
-      item.innerHTML = `
-        <strong>${pattern}</strong>
-        <div>
-          Total ${data.total}
-          · Big ${big.toFixed(1)}%
-          · Small ${small.toFixed(1)}%
-        </div>
-      `;
+logoutBtn.addEventListener(
+  "click",
+  () => {
+    localStorage.removeItem(
+      "analyzerToken"
+    );
 
-      patternsGrid.appendChild(item);
-    });
+    window.location.href = "/";
+  }
+);
 
-  updateSelectedPattern(stats);
-}
-
-/* ---------------------------
-   Selected pattern
----------------------------- */
-
-patternSelect.addEventListener("change", () => {
-  selectedPattern.textContent = patternSelect.value;
-
-  const numbers = parseOutcomes(outcomeInput.value);
-  const events = generateEvents(numbers);
-
-  const stats = buildPatternStats(events);
-
-  updateSelectedPattern(stats);
+loadDatasets().catch(error => {
+  console.error(error);
 });
-
-function updateSelectedPattern(stats) {
-  const pattern = patternSelect.value;
-  const data = stats[pattern];
-
-  selectedPattern.textContent = pattern;
-
-  if (!data) {
-    bigPercent.textContent = "0%";
-    smallPercent.textContent = "0%";
-
-    bigCount.textContent = "0 records";
-    smallCount.textContent = "0 records";
-
-    return;
-  }
-
-  const big = (data.big / data.total) * 100;
-  const small = (data.small / data.total) * 100;
-
-  bigPercent.textContent = `${big.toFixed(1)}%`;
-  smallPercent.textContent = `${small.toFixed(1)}%`;
-
-  bigCount.textContent =
-    `${data.big} record${data.big === 1 ? "" : "s"}`;
-
-  smallCount.textContent =
-    `${data.small} record${data.small === 1 ? "" : "s"}`;
-}
-
-/* ---------------------------
-   Generate all 100 patterns
----------------------------- */
-
-function generateAllPatterns() {
-  patternsGrid.innerHTML = "";
-
-  for (let first = 0; first <= 9; first++) {
-    for (let second = 0; second <= 9; second++) {
-
-      const pattern = `${first}-${second}`;
-
-      const item = document.createElement("div");
-
-      item.className = "pattern-item";
-
-      item.innerHTML = `
-        <strong>${pattern}</strong>
-        <div>
-          No data
-        </div>
-      `;
-
-      patternsGrid.appendChild(item);
-    }
-  }
-}
-
-generateAllPatterns();
