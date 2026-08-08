@@ -1,3 +1,4 @@
+
 const mongoose = require("mongoose");
 
 const datasetSchema = new mongoose.Schema(
@@ -26,4 +27,7 @@ datasetSchema.index({
   createdAt: -1
 });
 
-module.exports = mongoose.model("Dataset", datasetSchema);
+module.exports = mongoose.model(
+  "Dataset",
+  datasetSchema
+);
