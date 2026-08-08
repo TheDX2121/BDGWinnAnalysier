@@ -25,20 +25,17 @@ const patternStatSchema = new mongoose.Schema(
 
     total: {
       type: Number,
-      default: 0,
-      min: 0
+      default: 0
     },
 
     bigCount: {
       type: Number,
-      default: 0,
-      min: 0
+      default: 0
     },
 
     smallCount: {
       type: Number,
-      default: 0,
-      min: 0
+      default: 0
     },
 
     bigPercent: {
