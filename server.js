@@ -2,12 +2,6 @@ const express = require("express");
 const mongoose = require("mongoose");
 const path = require("path");
 
-const authRoutes =
-  require("./routes/auth");
-
-const userRoutes =
-  require("./routes/users");
-
 const datasetRoutes =
   require("./routes/datasets");
 
@@ -33,6 +27,8 @@ app.use(
   )
 );
 
+
+// MongoDB connection
 let connectionPromise = null;
 
 async function connectDB() {
@@ -52,12 +48,15 @@ async function connectDB() {
   await connectionPromise;
 }
 
+
+// Database middleware
 app.use(
   async (req, res, next) => {
     try {
       await connectDB();
       next();
     } catch (error) {
+
       console.error(
         "MongoDB connection error:",
         error
@@ -65,22 +64,15 @@ app.use(
 
       res.status(500).json({
         success: false,
-        message: "Database unavailable."
+        message:
+          "Database unavailable."
       });
     }
   }
 );
 
-app.use(
-  "/api/auth",
-  authRoutes
-);
 
-app.use(
-  "/api/users",
-  userRoutes
-);
-
+// API routes
 app.use(
   "/api/datasets",
   datasetRoutes
@@ -96,6 +88,21 @@ app.use(
   analysisRoutes
 );
 
+
+// Dashboard
+app.get(
+  "/",
+  (req, res) => {
+    res.sendFile(
+      path.join(
+        __dirname,
+        "public",
+        "dashboard.html"
+      )
+    );
+  }
+);
+
 app.get(
   "/dashboard",
   (req, res) => {
@@ -109,17 +116,5 @@ app.get(
   }
 );
 
-app.get(
-  "/",
-  (req, res) => {
-    res.sendFile(
-      path.join(
-        __dirname,
-        "public",
-        "index.html"
-      )
-    );
-  }
-);
 
 module.exports = app;
