@@ -1,11 +1,11 @@
 const express = require("express");
 
 const User = require("../models/User");
-const authMiddleware = require("../middleware/auth");
+const auth = require("../middleware/auth");
 
 const router = express.Router();
 
-router.get("/me", authMiddleware, async (req, res) => {
+router.get("/me", auth, async (req, res) => {
   try {
     const user = await User.findById(
       req.user.userId
