@@ -1,37 +1,21 @@
 const express = require("express");
 
 const Dataset = require("../models/Dataset");
+const Outcome = require("../models/Outcome");
+const Event = require("../models/Event");
+const PatternStat = require("../models/PatternStat");
+const Sequence = require("../models/Sequence");
+
+const authMiddleware = require("../middleware/auth");
 
 const router = express.Router();
 
-/*
-  Temporary authentication helper.
-
-  Later this will be replaced with proper
-  JWT middleware.
-*/
-
-function getUserId(req) {
-  return req.headers["x-user-id"];
-}
-
-/*
-  GET /api/datasets
-*/
+router.use(authMiddleware);
 
 router.get("/", async (req, res) => {
   try {
-    const userId = getUserId(req);
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication required."
-      });
-    }
-
     const datasets = await Dataset.find({
-      userId
+      userId: req.user.userId
     }).sort({
       createdAt: -1
     });
@@ -40,9 +24,8 @@ router.get("/", async (req, res) => {
       success: true,
       datasets
     });
-
   } catch (error) {
-    console.error("Get datasets error:", error);
+    console.error(error);
 
     res.status(500).json({
       success: false,
@@ -51,21 +34,9 @@ router.get("/", async (req, res) => {
   }
 });
 
-/*
-  POST /api/datasets
-*/
-
 router.post("/", async (req, res) => {
   try {
-    const userId = getUserId(req);
     const { name } = req.body;
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication required."
-      });
-    }
 
     if (!name || !name.trim()) {
       return res.status(400).json({
@@ -75,17 +46,21 @@ router.post("/", async (req, res) => {
     }
 
     const dataset = await Dataset.create({
-      userId,
+      userId: req.user.userId,
       name: name.trim()
+    });
+
+    await Sequence.create({
+      datasetId: dataset._id,
+      nextSequence: 1
     });
 
     res.status(201).json({
       success: true,
       dataset
     });
-
   } catch (error) {
-    console.error("Create dataset error:", error);
+    console.error(error);
 
     res.status(500).json({
       success: false,
@@ -94,29 +69,24 @@ router.post("/", async (req, res) => {
   }
 });
 
-/*
-  PATCH /api/datasets/:id
-*/
-
 router.patch("/:id", async (req, res) => {
   try {
-    const userId = getUserId(req);
     const { name } = req.body;
 
-    if (!userId) {
-      return res.status(401).json({
+    if (!name || !name.trim()) {
+      return res.status(400).json({
         success: false,
-        message: "Authentication required."
+        message: "Dataset name is required."
       });
     }
 
     const dataset = await Dataset.findOneAndUpdate(
       {
         _id: req.params.id,
-        userId
+        userId: req.user.userId
       },
       {
-        name: name?.trim()
+        name: name.trim()
       },
       {
         new: true
@@ -134,9 +104,8 @@ router.patch("/:id", async (req, res) => {
       success: true,
       dataset
     });
-
   } catch (error) {
-    console.error("Rename dataset error:", error);
+    console.error(error);
 
     res.status(500).json({
       success: false,
@@ -145,25 +114,14 @@ router.patch("/:id", async (req, res) => {
   }
 });
 
-/*
-  DELETE /api/datasets/:id
-*/
-
 router.delete("/:id", async (req, res) => {
   try {
-    const userId = getUserId(req);
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication required."
-      });
-    }
-
-    const dataset = await Dataset.findOneAndDelete({
+    const filter = {
       _id: req.params.id,
-      userId
-    });
+      userId: req.user.userId
+    };
+
+    const dataset = await Dataset.findOne(filter);
 
     if (!dataset) {
       return res.status(404).json({
@@ -172,13 +130,34 @@ router.delete("/:id", async (req, res) => {
       });
     }
 
+    await Promise.all([
+      Outcome.deleteMany({
+        datasetId: dataset._id
+      }),
+
+      Event.deleteMany({
+        datasetId: dataset._id
+      }),
+
+      PatternStat.deleteMany({
+        datasetId: dataset._id
+      }),
+
+      Sequence.deleteOne({
+        datasetId: dataset._id
+      }),
+
+      Dataset.deleteOne({
+        _id: dataset._id
+      })
+    ]);
+
     res.json({
       success: true,
-      message: "Dataset deleted."
+      message: "Dataset and its data deleted."
     });
-
   } catch (error) {
-    console.error("Delete dataset error:", error);
+    console.error(error);
 
     res.status(500).json({
       success: false,
