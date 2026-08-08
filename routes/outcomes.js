@@ -1,13 +1,17 @@
 const express = require("express");
 
 const Dataset = require("../models/Dataset");
-const Outcome = require("../models/Outcome");
-const Sequence = require("../models/Sequence");
 
-const authMiddleware = require("../middleware/auth");
-const { getSize } = require("../utils/classifier");
-const { validateNumbers } = require("../utils/validation");
-const { processNewOutcome } = require("../services/analyzer");
+const authMiddleware =
+  require("../middleware/auth");
+
+const {
+  validateNumbers
+} = require("../utils/validation");
+
+const {
+  importOutcomes
+} = require("../services/importService");
 
 const router = express.Router();
 
@@ -24,130 +28,206 @@ async function getOwnedDataset(
 }
 
 /*
-  POST /api/outcomes/:datasetId
+  POST
 
-  Body:
+  /api/outcomes/:datasetId
+
+  Normal/live outcome entry.
+
+  Example:
 
   {
-    "numbers": [9, 8, 1, 9]
+    "numbers": [9]
   }
 */
 
-router.post("/:datasetId", async (req, res) => {
-  try {
-    const { datasetId } = req.params;
-    const { numbers } = req.body;
+router.post(
+  "/:datasetId",
+  async (req, res) => {
+    try {
+      const {
+        datasetId
+      } = req.params;
 
-    const validation = validateNumbers(numbers);
+      const {
+        numbers
+      } = req.body;
 
-    if (!validation.valid) {
-      return res.status(400).json({
-        success: false,
-        message: validation.message
-      });
-    }
+      const validation =
+        validateNumbers(numbers);
 
-    const dataset = await getOwnedDataset(
-      datasetId,
-      req.user.userId
-    );
+      if (!validation.valid) {
+        return res.status(400).json({
+          success: false,
+          message: validation.message
+        });
+      }
 
-    if (!dataset) {
-      return res.status(404).json({
-        success: false,
-        message: "Dataset not found."
-      });
-    }
-
-    let sequence = await Sequence.findOne({
-      datasetId
-    });
-
-    if (!sequence) {
-      sequence = await Sequence.create({
-        datasetId,
-        nextSequence: 1
-      });
-    }
-
-    const created = [];
-
-    for (const number of numbers) {
-      const outcome = await Outcome.create({
-        datasetId,
-        sequence: sequence.nextSequence,
-        number,
-        size: getSize(number)
-      });
-
-      sequence.nextSequence++;
-
-      const analysis =
-        await processNewOutcome(
+      const dataset =
+        await getOwnedDataset(
           datasetId,
-          outcome
+          req.user.userId
         );
 
-      created.push({
-        outcome,
-        event: analysis.event,
-        stat: analysis.stat
+      if (!dataset) {
+        return res.status(404).json({
+          success: false,
+          message: "Dataset not found."
+        });
+      }
+
+      const result =
+        await importOutcomes(
+          datasetId,
+          numbers
+        );
+
+      res.status(201).json({
+        success: true,
+        ...result
+      });
+
+    } catch (error) {
+      console.error(
+        "Outcome error:",
+        error
+      );
+
+      res.status(500).json({
+        success: false,
+        message:
+          "Unable to process outcomes."
       });
     }
-
-    await sequence.save();
-
-    res.status(201).json({
-      success: true,
-      added: created.length,
-      results: created
-    });
-  } catch (error) {
-    console.error("Outcome error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Unable to process outcomes."
-    });
   }
-});
+);
 
 /*
-  GET /api/outcomes/:datasetId
+  POST
+
+  /api/outcomes/:datasetId/import
+
+  Used for large history imports.
+
+  Example:
+
+  {
+    "numbers": [
+      9,8,1,9,7,6,2,4
+    ]
+  }
 */
 
-router.get("/:datasetId", async (req, res) => {
-  try {
-    const dataset = await getOwnedDataset(
-      req.params.datasetId,
-      req.user.userId
-    );
+router.post(
+  "/:datasetId/import",
+  async (req, res) => {
+    try {
+      const {
+        datasetId
+      } = req.params;
 
-    if (!dataset) {
-      return res.status(404).json({
+      const {
+        numbers
+      } = req.body;
+
+      const validation =
+        validateNumbers(numbers);
+
+      if (!validation.valid) {
+        return res.status(400).json({
+          success: false,
+          message: validation.message
+        });
+      }
+
+      const dataset =
+        await getOwnedDataset(
+          datasetId,
+          req.user.userId
+        );
+
+      if (!dataset) {
+        return res.status(404).json({
+          success: false,
+          message: "Dataset not found."
+        });
+      }
+
+      const result =
+        await importOutcomes(
+          datasetId,
+          numbers
+        );
+
+      res.status(201).json({
+        success: true,
+        mode: "history-import",
+        ...result
+      });
+
+    } catch (error) {
+      console.error(
+        "Import error:",
+        error
+      );
+
+      res.status(500).json({
         success: false,
-        message: "Dataset not found."
+        message:
+          "Unable to import history."
       });
     }
-
-    const outcomes = await Outcome.find({
-      datasetId: dataset._id
-    }).sort({
-      sequence: 1
-    });
-
-    res.json({
-      success: true,
-      outcomes
-    });
-  } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: "Unable to load outcomes."
-    });
   }
-});
+);
+
+/*
+  GET
+
+  /api/outcomes/:datasetId
+*/
+
+router.get(
+  "/:datasetId",
+  async (req, res) => {
+    try {
+      const dataset =
+        await getOwnedDataset(
+          req.params.datasetId,
+          req.user.userId
+        );
+
+      if (!dataset) {
+        return res.status(404).json({
+          success: false,
+          message: "Dataset not found."
+        });
+      }
+
+      const Outcome =
+        require("../models/Outcome");
+
+      const outcomes =
+        await Outcome.find({
+          datasetId: dataset._id
+        }).sort({
+          sequence: 1
+        });
+
+      res.json({
+        success: true,
+        outcomes
+      });
+
+    } catch (error) {
+      console.error(error);
+
+      res.status(500).json({
+        success: false,
+        message:
+          "Unable to load outcomes."
+      });
+    }
+  }
+);
 
 module.exports = router;
