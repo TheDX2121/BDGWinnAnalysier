@@ -12,7 +12,7 @@ const analysisRoutes = require("./routes/analysis");
 
 const app = express();
 
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use(express.static(path.join(__dirname, "public")));
@@ -23,8 +23,17 @@ app.use("/api/datasets", datasetRoutes);
 app.use("/api/outcomes", outcomeRoutes);
 app.use("/api/analysis", analysisRoutes);
 
+app.get("/api/health", (req, res) => {
+  res.json({
+    success: true,
+    message: "Analyzer API is running"
+  });
+});
+
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  res.sendFile(
+    path.join(__dirname, "public", "index.html")
+  );
 });
 
 app.get("/dashboard", (req, res) => {
@@ -33,33 +42,36 @@ app.get("/dashboard", (req, res) => {
   );
 });
 
-app.get("/api/health", (req, res) => {
-  res.json({
-    success: true,
-    message: "Analyzer API is running"
-  });
-});
-
 const PORT = process.env.PORT || 3000;
 
-async function startServer() {
+async function start() {
   try {
     if (!process.env.MONGODB_URI) {
-      console.log("MONGODB_URI is not configured.");
-    } else {
-      await mongoose.connect(process.env.MONGODB_URI);
-      console.log("MongoDB connected.");
+      throw new Error("MONGODB_URI is missing");
     }
 
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET is missing");
+    }
+
+    await mongoose.connect(process.env.MONGODB_URI);
+
+    console.log("MongoDB connected");
+
+    if (require.main === module) {
+      app.listen(PORT, () => {
+        console.log(`Server running on ${PORT}`);
+      });
+    }
   } catch (error) {
     console.error("Startup error:", error.message);
-    process.exit(1);
+
+    if (require.main === module) {
+      process.exit(1);
+    }
   }
 }
 
-startServer();
+start();
 
 module.exports = app;
