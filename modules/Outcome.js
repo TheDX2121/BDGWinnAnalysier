@@ -42,4 +42,7 @@ outcomeSchema.index(
   }
 );
 
-module.exports = mongoose.model("Outcome", outcomeSchema);
+module.exports = mongoose.model(
+  "Outcome",
+  outcomeSchema
+);
