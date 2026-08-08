@@ -2,54 +2,79 @@ const express = require("express");
 
 const router = express.Router();
 
-const Outcome =
-  require("../models/Outcome");
-
-const analyzer =
-  require("../services/analyzer");
+const Outcome = require("../models/Outcome");
+const analyzer = require("../services/analyzer");
 
 
+// =====================================================
 // GET ALL OUTCOMES
+// =====================================================
+
 router.get(
   "/:datasetId",
   async (req, res) => {
     try {
-      const outcomes =
-        await Outcome.find({
-          dataset: req.params.datasetId
-        })
-          .sort({ createdAt: 1 })
-          .lean();
+      const outcomes = await Outcome.find({
+        dataset: req.params.datasetId
+      })
+        .sort({ createdAt: 1 })
+        .lean();
 
-      res.json({
+      return res.json({
         success: true,
         outcomes
       });
 
     } catch (error) {
       console.error(
-        "Get outcomes error:",
+        "GET OUTCOMES ERROR:",
         error
       );
 
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
-        message:
-          "Failed to load outcomes."
+        message: error.message
       });
     }
   }
 );
 
 
-// ADD SINGLE LIVE OUTCOME
+// =====================================================
+// ADD ONE LIVE OUTCOME
+// =====================================================
+
 router.post(
   "/:datasetId",
   async (req, res) => {
     try {
-      const number =
-        Number(req.body.numbers?.[0]);
 
+      const datasetId =
+        req.params.datasetId;
+
+
+      // Accept numbers: [9]
+      // Also accept number: 9
+      let number;
+
+      if (
+        Array.isArray(
+          req.body.numbers
+        )
+      ) {
+        number =
+          Number(
+            req.body.numbers[0]
+          );
+      } else {
+        number =
+          Number(
+            req.body.number
+          );
+      }
+
+
+      // Validate number
       if (
         !Number.isInteger(number) ||
         number < 0 ||
@@ -63,26 +88,50 @@ router.post(
       }
 
 
+      // -------------------------------------------------
+      // Get the previous two outcomes
+      // -------------------------------------------------
+
       const previous =
         await Outcome.find({
-          dataset: req.params.datasetId
+          dataset: datasetId
         })
-          .sort({ createdAt: -1 })
+          .sort({
+            createdAt: -1
+          })
           .limit(2)
           .lean();
 
 
+      // -------------------------------------------------
+      // Save actual outcome
+      // -------------------------------------------------
+
       const outcome =
         await Outcome.create({
-          dataset:
-            req.params.datasetId,
-
-          number
+          dataset: datasetId,
+          number: number
         });
 
 
-      // Analyze the new outcome
-      if (previous.length >= 2) {
+      // -------------------------------------------------
+      // Pattern analysis
+      //
+      // Example:
+      //
+      // Previous:
+      // 9, 8
+      //
+      // New:
+      // 1
+      //
+      // Record:
+      // 9-8 -> 1
+      // -------------------------------------------------
+
+      if (
+        previous.length >= 2
+      ) {
 
         const second =
           previous[0].number;
@@ -90,34 +139,48 @@ router.post(
         const first =
           previous[1].number;
 
-        await analyzer.processNewOutcome({
-          datasetId:
-            req.params.datasetId,
 
-          first,
+        if (
+          analyzer &&
+          typeof
+            analyzer.processNewOutcome ===
+              "function"
+        ) {
 
-          second,
+          await analyzer.processNewOutcome({
+            datasetId,
+            first,
+            second,
+            next: number
+          });
 
-          next: number
-        });
+        } else {
+
+          console.warn(
+            "processNewOutcome() not available in analyzer.js"
+          );
+        }
       }
 
 
-      res.status(201).json({
+      return res.status(201).json({
         success: true,
         imported: 1,
         outcome
       });
 
+
     } catch (error) {
+
       console.error(
-        "Add outcome error:",
+        "ADD OUTCOME ERROR:",
         error
       );
 
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message:
+          error.message ||
           "Failed to add outcome."
       });
     }
@@ -125,11 +188,19 @@ router.post(
 );
 
 
-// IMPORT HISTORY
+// =====================================================
+// IMPORT MULTIPLE OUTCOMES
+// =====================================================
+
 router.post(
   "/:datasetId/import",
   async (req, res) => {
+
     try {
+
+      const datasetId =
+        req.params.datasetId;
+
 
       const numbers =
         Array.isArray(
@@ -139,7 +210,12 @@ router.post(
           : [];
 
 
+      // -------------------------------------------------
+      // Validate input
+      // -------------------------------------------------
+
       if (!numbers.length) {
+
         return res.status(400).json({
           success: false,
           message:
@@ -148,8 +224,14 @@ router.post(
       }
 
 
-      const validNumbers =
-        numbers.every(
+      const converted =
+        numbers.map(
+          value => Number(value)
+        );
+
+
+      const valid =
+        converted.every(
           number =>
             Number.isInteger(number) &&
             number >= 0 &&
@@ -157,7 +239,8 @@ router.post(
         );
 
 
-      if (!validNumbers) {
+      if (!valid) {
+
         return res.status(400).json({
           success: false,
           message:
@@ -166,38 +249,29 @@ router.post(
       }
 
 
-      // Get existing outcomes
-      const existing =
-        await Outcome.find({
-          dataset:
-            req.params.datasetId
-        })
-          .sort({ createdAt: 1 })
-          .lean();
-
-
-      /*
-       * We do NOT remove repeated patterns.
-       *
-       * Every real occurrence is recorded.
-       *
-       * Example:
-       *
-       * 9,8,1
-       * ...
-       * 9,8,1
-       *
-       * Both 9-8 -> 1 events count.
-       */
-
+      // -------------------------------------------------
+      // IMPORTANT
+      //
+      // Every imported outcome is stored.
+      //
+      // We DO NOT remove repeated patterns.
+      //
+      // Example:
+      //
+      // 9 8 1
+      // ...
+      // 9 8 1
+      //
+      // Both occurrences remain in the dataset.
+      // -------------------------------------------------
 
       const documents =
-        numbers.map(number => ({
-          dataset:
-            req.params.datasetId,
-
-          number
-        }));
+        converted.map(
+          number => ({
+            dataset: datasetId,
+            number
+          })
+        );
 
 
       const created =
@@ -206,17 +280,29 @@ router.post(
         );
 
 
-      /*
-       * Rebuild/analyze the complete dataset
-       * so repeated patterns remain counted.
-       */
+      // -------------------------------------------------
+      // Rebuild pattern statistics
+      // -------------------------------------------------
 
-      await analyzer.rebuildDataset(
-        req.params.datasetId
-      );
+      if (
+        analyzer &&
+        typeof analyzer.rebuildDataset ===
+          "function"
+      ) {
+
+        await analyzer.rebuildDataset(
+          datasetId
+        );
+
+      } else {
+
+        console.warn(
+          "rebuildDataset() not available in analyzer.js"
+        );
+      }
 
 
-      res.json({
+      return res.json({
         success: true,
 
         imported:
@@ -225,17 +311,75 @@ router.post(
         skipped: 0
       });
 
+
     } catch (error) {
 
       console.error(
-        "Import history error:",
+        "IMPORT OUTCOMES ERROR:",
         error
       );
 
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message:
-          "Failed to import history."
+          error.message ||
+          "Failed to import outcomes."
+      });
+    }
+  }
+);
+
+
+// =====================================================
+// DELETE ALL OUTCOMES OF A DATASET
+// =====================================================
+
+router.delete(
+  "/:datasetId",
+  async (req, res) => {
+
+    try {
+
+      const result =
+        await Outcome.deleteMany({
+          dataset:
+            req.params.datasetId
+        });
+
+
+      // Rebuild empty statistics
+      if (
+        analyzer &&
+        typeof analyzer.rebuildDataset ===
+          "function"
+      ) {
+
+        await analyzer.rebuildDataset(
+          req.params.datasetId
+        );
+      }
+
+
+      return res.json({
+        success: true,
+
+        deleted:
+          result.deletedCount
+      });
+
+
+    } catch (error) {
+
+      console.error(
+        "DELETE OUTCOMES ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.message ||
+          "Failed to delete outcomes."
       });
     }
   }
