@@ -32,9 +32,14 @@ const outcomeSchema = new mongoose.Schema(
   }
 );
 
-outcomeSchema.index({
-  datasetId: 1,
-  sequence: 1
-});
+outcomeSchema.index(
+  {
+    datasetId: 1,
+    sequence: 1
+  },
+  {
+    unique: true
+  }
+);
 
 module.exports = mongoose.model("Outcome", outcomeSchema);
