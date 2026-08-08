@@ -1,16 +1,22 @@
 const express = require("express");
 
-const Dataset = require("../models/Dataset");
-const PatternStat = require("../models/PatternStat");
-const Event = require("../models/Event");
+const Dataset =
+  require("../models/Dataset");
 
-const authMiddleware = require("../middleware/auth");
+const PatternStat =
+  require("../models/PatternStat");
+
+const Event =
+  require("../models/Event");
+
+const auth =
+  require("../middleware/auth");
 
 const router = express.Router();
 
-router.use(authMiddleware);
+router.use(auth);
 
-async function ownsDataset(
+async function ownedDataset(
   datasetId,
   userId
 ) {
@@ -21,31 +27,35 @@ async function ownsDataset(
 }
 
 /*
-  All 100 patterns
+  GET ALL 100 PATTERNS
 */
 
 router.get(
   "/:datasetId/patterns",
   async (req, res) => {
     try {
-      const dataset = await ownsDataset(
-        req.params.datasetId,
-        req.user.userId
-      );
+      const dataset =
+        await ownedDataset(
+          req.params.datasetId,
+          req.user.userId
+        );
 
       if (!dataset) {
         return res.status(404).json({
           success: false,
-          message: "Dataset not found."
+          message:
+            "Dataset not found."
         });
       }
 
-      const stats = await PatternStat.find({
-        datasetId: dataset._id
-      }).sort({
-        first: 1,
-        second: 1
-      });
+      const stats =
+        await PatternStat.find({
+          datasetId:
+            dataset._id
+        }).sort({
+          first: 1,
+          second: 1
+        });
 
       res.json({
         success: true,
@@ -56,16 +66,17 @@ router.get(
 
       res.status(500).json({
         success: false,
-        message: "Unable to load statistics."
+        message:
+          "Unable to load statistics."
       });
     }
   }
 );
 
 /*
-  Specific pattern
+  GET ONE PATTERN
 
-  /api/analysis/DATASET_ID/pattern/9/8
+  /api/analysis/:datasetId/pattern/9/8
 */
 
 router.get(
@@ -78,47 +89,85 @@ router.get(
         second
       } = req.params;
 
-      const dataset = await ownsDataset(
-        datasetId,
-        req.user.userId
-      );
+      const dataset =
+        await ownedDataset(
+          datasetId,
+          req.user.userId
+        );
 
       if (!dataset) {
         return res.status(404).json({
           success: false,
-          message: "Dataset not found."
+          message:
+            "Dataset not found."
         });
       }
 
-      const stat = await PatternStat.findOne({
-        datasetId,
-        first: Number(first),
-        second: Number(second)
-      });
+      const firstNumber =
+        Number(first);
 
-      const events = await Event.find({
-        datasetId,
-        first: Number(first),
-        second: Number(second)
-      }).sort({
-        sequence: 1
-      });
+      const secondNumber =
+        Number(second);
+
+      if (
+        !Number.isInteger(
+          firstNumber
+        ) ||
+        !Number.isInteger(
+          secondNumber
+        ) ||
+        firstNumber < 0 ||
+        firstNumber > 9 ||
+        secondNumber < 0 ||
+        secondNumber > 9
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Pattern must be between 0-0 and 9-9."
+        });
+      }
+
+      const stat =
+        await PatternStat.findOne({
+          datasetId,
+          first:
+            firstNumber,
+          second:
+            secondNumber
+        });
+
+      const events =
+        await Event.find({
+          datasetId,
+          first:
+            firstNumber,
+          second:
+            secondNumber
+        }).sort({
+          sequence: 1
+        });
 
       res.json({
         success: true,
 
         pattern: {
-          first: Number(first),
-          second: Number(second)
+          first:
+            firstNumber,
+
+          second:
+            secondNumber
         },
 
-        stats: stat || {
-          total: 0,
-          bigCount: 0,
-          smallCount: 0,
-          bigPercent: 0,
-          smallPercent: 0
-        },
+        stats:
+          stat || {
+            total: 0,
+            bigCount: 0,
+            smallCount: 0,
+            bigPercent: 0,
+            smallPercent: 0,
+            nextNumbers: []
+          },
 
         events
       });
@@ -127,7 +176,8 @@ router.get(
 
       res.status(500).json({
         success: false,
-        message: "Unable to load pattern."
+        message:
+          "Unable to load pattern."
       });
     }
   }
