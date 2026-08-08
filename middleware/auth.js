@@ -2,21 +2,27 @@ const jwt = require("jsonwebtoken");
 
 function authMiddleware(req, res, next) {
   try {
-    const header = req.headers.authorization;
+    const header =
+      req.headers.authorization;
 
-    if (!header || !header.startsWith("Bearer ")) {
+    if (
+      !header ||
+      !header.startsWith("Bearer ")
+    ) {
       return res.status(401).json({
         success: false,
         message: "Authentication required."
       });
     }
 
-    const token = header.substring(7);
+    const token =
+      header.substring(7);
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET
-    );
+    const decoded =
+      jwt.verify(
+        token,
+        process.env.JWT_SECRET
+      );
 
     req.user = {
       userId: decoded.userId,
@@ -24,6 +30,7 @@ function authMiddleware(req, res, next) {
     };
 
     next();
+
   } catch (error) {
     return res.status(401).json({
       success: false,
