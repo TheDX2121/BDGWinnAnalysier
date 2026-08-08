@@ -2,19 +2,35 @@ const express = require("express");
 
 const Dataset = require("../models/Dataset");
 const Outcome = require("../models/Outcome");
+const Sequence = require("../models/Sequence");
 
 const authMiddleware = require("../middleware/auth");
-const { processEvents } = require("../services/analyzer");
 const { getSize } = require("../utils/classifier");
 const { validateNumbers } = require("../utils/validation");
+const { processNewOutcome } = require("../services/analyzer");
 
 const router = express.Router();
 
 router.use(authMiddleware);
 
+async function getOwnedDataset(
+  datasetId,
+  userId
+) {
+  return Dataset.findOne({
+    _id: datasetId,
+    userId
+  });
+}
+
 /*
-  POST
-  /api/outcomes/:datasetId
+  POST /api/outcomes/:datasetId
+
+  Body:
+
+  {
+    "numbers": [9, 8, 1, 9]
+  }
 */
 
 router.post("/:datasetId", async (req, res) => {
@@ -31,10 +47,10 @@ router.post("/:datasetId", async (req, res) => {
       });
     }
 
-    const dataset = await Dataset.findOne({
-      _id: datasetId,
-      userId: req.user.userId
-    });
+    const dataset = await getOwnedDataset(
+      datasetId,
+      req.user.userId
+    );
 
     if (!dataset) {
       return res.status(404).json({
@@ -43,46 +59,51 @@ router.post("/:datasetId", async (req, res) => {
       });
     }
 
-    const lastOutcome = await Outcome.findOne({
+    let sequence = await Sequence.findOne({
       datasetId
-    }).sort({
-      sequence: -1
     });
 
-    let nextSequence =
-      lastOutcome
-        ? lastOutcome.sequence + 1
-        : 1;
-
-    const outcomeDocuments = numbers.map(number => {
-      const document = {
+    if (!sequence) {
+      sequence = await Sequence.create({
         datasetId,
-        sequence: nextSequence,
+        nextSequence: 1
+      });
+    }
+
+    const created = [];
+
+    for (const number of numbers) {
+      const outcome = await Outcome.create({
+        datasetId,
+        sequence: sequence.nextSequence,
         number,
         size: getSize(number)
-      };
+      });
 
-      nextSequence++;
+      sequence.nextSequence++;
 
-      return document;
-    });
+      const analysis =
+        await processNewOutcome(
+          datasetId,
+          outcome
+        );
 
-    await Outcome.insertMany(outcomeDocuments);
+      created.push({
+        outcome,
+        event: analysis.event,
+        stat: analysis.stat
+      });
+    }
 
-    const result = await processEvents(
-      datasetId,
-      numbers
-    );
+    await sequence.save();
 
     res.status(201).json({
       success: true,
-      outcomesAdded: outcomeDocuments.length,
-      eventsCreated: result.events.length,
-      statsUpdated: result.stats.length
+      added: created.length,
+      results: created
     });
-
   } catch (error) {
-    console.error("Outcome processing error:", error);
+    console.error("Outcome error:", error);
 
     res.status(500).json({
       success: false,
@@ -92,18 +113,15 @@ router.post("/:datasetId", async (req, res) => {
 });
 
 /*
-  GET
-  /api/outcomes/:datasetId
+  GET /api/outcomes/:datasetId
 */
 
 router.get("/:datasetId", async (req, res) => {
   try {
-    const { datasetId } = req.params;
-
-    const dataset = await Dataset.findOne({
-      _id: datasetId,
-      userId: req.user.userId
-    });
+    const dataset = await getOwnedDataset(
+      req.params.datasetId,
+      req.user.userId
+    );
 
     if (!dataset) {
       return res.status(404).json({
@@ -113,7 +131,7 @@ router.get("/:datasetId", async (req, res) => {
     }
 
     const outcomes = await Outcome.find({
-      datasetId
+      datasetId: dataset._id
     }).sort({
       sequence: 1
     });
@@ -122,9 +140,8 @@ router.get("/:datasetId", async (req, res) => {
       success: true,
       outcomes
     });
-
   } catch (error) {
-    console.error("Get outcomes error:", error);
+    console.error(error);
 
     res.status(500).json({
       success: false,
