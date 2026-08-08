@@ -34,6 +34,11 @@ const eventSchema = new mongoose.Schema(
       type: String,
       enum: ["Big", "Small"],
       required: true
+    },
+
+    sequence: {
+      type: Number,
+      required: true
     }
   },
   {
@@ -43,8 +48,7 @@ const eventSchema = new mongoose.Schema(
 
 eventSchema.index({
   datasetId: 1,
-  first: 1,
-  second: 1
+  sequence: 1
 });
 
 module.exports = mongoose.model("Event", eventSchema);
