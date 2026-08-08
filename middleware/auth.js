@@ -11,14 +11,7 @@ function authMiddleware(req, res, next) {
       });
     }
 
-    const token = header.split(" ")[1];
-
-    if (!process.env.JWT_SECRET) {
-      return res.status(500).json({
-        success: false,
-        message: "JWT configuration is missing."
-      });
-    }
+    const token = header.substring(7);
 
     const decoded = jwt.verify(
       token,
@@ -31,7 +24,6 @@ function authMiddleware(req, res, next) {
     };
 
     next();
-
   } catch (error) {
     return res.status(401).json({
       success: false,
