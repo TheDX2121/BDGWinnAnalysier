@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080808">
+  <title>Analyzer — Login</title>
+
+  <link rel="stylesheet" href="login.css">
+</head>
+
+<body>
+  <main class="login-page">
+
+    <div class="background-glow glow-one"></div>
+    <div class="background-glow glow-two"></div>
+
+    <section class="login-card">
+
+      <div class="brand">
+        <div class="brand-icon">A</div>
+        <h1>ANALYZER</h1>
+        <p>Sequence Analysis System</p>
+      </div>
+
+      <div class="welcome">
+        <h2>Welcome Back</h2>
+        <p>Sign in to continue</p>
+      </div>
+
+      <form id="loginForm">
+
+        <div class="input-group">
+          <label for="email">Email</label>
+          <div class="input-box">
+            <span class="input-icon">✉</span>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              placeholder="Enter your email"
+              autocomplete="email"
+              required
+            >
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label for="password">Password</label>
+
+          <div class="input-box">
+            <span class="input-icon">⌑</span>
+
+            <input
+              type="password"
+              id="password"
+              name="password"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+              required
+            >
+
+            <button
+              type="button"
+              class="password-toggle"
+              id="passwordToggle"
+              aria-label="Show password"
+            >
+              ◉
+            </button>
+          </div>
+        </div>
+
+        <div class="login-options">
+          <label class="remember">
+            <input type="checkbox" id="remember">
+            <span>Remember me</span>
+          </label>
+
+          <button type="button" class="forgot-btn" id="forgotBtn">
+            Forgot password?
+          </button>
+        </div>
+
+        <button type="submit" class="login-button" id="loginButton">
+          <span>LOGIN</span>
+          <span class="button-arrow">→</span>
+        </button>
+
+        <div class="divider">
+          <span>OR</span>
+        </div>
+
+        <button type="button" class="create-button" id="createButton">
+          CREATE ACCOUNT
+        </button>
+
+      </form>
+
+      <p class="status-message" id="statusMessage"></p>
+
+      <footer>
+        <span>Secure Analysis Environment</span>
+        <span class="status-dot"></span>
+      </footer>
+
+    </section>
+  </main>
+
+  <script src="login.js"></script>
+</body>
+</html>
