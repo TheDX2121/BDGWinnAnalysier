@@ -1,128 +1,141 @@
 const Event = require("../models/Event");
 const PatternStat = require("../models/PatternStat");
+const Outcome = require("../models/Outcome");
 
-function getSize(number) {
-  return number >= 5 ? "Big" : "Small";
-}
+const { getSize } = require("../utils/classifier");
 
-function createEvents(numbers) {
-  const events = [];
+async function updatePatternStat(
+  datasetId,
+  first,
+  second,
+  resultType
+) {
+  const increment = {
+    total: 1
+  };
 
-  for (let i = 0; i < numbers.length - 2; i++) {
-    const first = numbers[i];
-    const second = numbers[i + 1];
-    const next = numbers[i + 2];
-
-    events.push({
-      first,
-      second,
-      next,
-      resultType: getSize(next)
-    });
+  if (resultType === "Big") {
+    increment.bigCount = 1;
+  } else {
+    increment.smallCount = 1;
   }
 
-  return events;
+  const stat = await PatternStat.findOneAndUpdate(
+    {
+      datasetId,
+      first,
+      second
+    },
+    {
+      $inc: increment
+    },
+    {
+      upsert: true,
+      new: true,
+      setDefaultsOnInsert: true
+    }
+  );
+
+  stat.bigPercent =
+    stat.total > 0
+      ? Number(
+          (
+            (stat.bigCount / stat.total) *
+            100
+          ).toFixed(2)
+        )
+      : 0;
+
+  stat.smallPercent =
+    stat.total > 0
+      ? Number(
+          (
+            (stat.smallCount / stat.total) *
+            100
+          ).toFixed(2)
+        )
+      : 0;
+
+  await stat.save();
+
+  return stat;
 }
 
-async function processEvents(datasetId, numbers) {
-  const events = createEvents(numbers);
+/*
+  Process ONLY newly created outcomes.
 
-  if (events.length === 0) {
+  If previous outcomes are:
+
+  9, 8
+
+  and new outcome:
+
+  1
+
+  event:
+
+  9,8 -> 1
+
+  Next new outcome:
+
+  9
+
+  event:
+
+  8,1 -> 9
+*/
+
+async function processNewOutcome(
+  datasetId,
+  outcome
+) {
+  const previousTwo = await Outcome.find({
+    datasetId,
+    sequence: {
+      $lt: outcome.sequence
+    }
+  })
+    .sort({
+      sequence: -1
+    })
+    .limit(2);
+
+  if (previousTwo.length < 2) {
     return {
-      events: [],
-      stats: []
+      event: null,
+      stat: null
     };
   }
 
-  const eventDocuments = events.map(event => ({
+  const first = previousTwo[1].number;
+  const second = previousTwo[0].number;
+  const next = outcome.number;
+
+  const resultType = getSize(next);
+
+  const event = await Event.create({
     datasetId,
-    ...event
-  }));
+    first,
+    second,
+    next,
+    resultType,
+    sequence: outcome.sequence
+  });
 
-  await Event.insertMany(eventDocuments);
-
-  const grouped = {};
-
-  for (const event of events) {
-    const key = `${event.first}-${event.second}`;
-
-    if (!grouped[key]) {
-      grouped[key] = {
-        first: event.first,
-        second: event.second,
-        total: 0,
-        bigCount: 0,
-        smallCount: 0
-      };
-    }
-
-    grouped[key].total++;
-
-    if (event.resultType === "Big") {
-      grouped[key].bigCount++;
-    } else {
-      grouped[key].smallCount++;
-    }
-  }
-
-  const stats = [];
-
-  for (const key of Object.keys(grouped)) {
-    const item = grouped[key];
-
-    const bigPercent =
-      item.total > 0
-        ? (item.bigCount / item.total) * 100
-        : 0;
-
-    const smallPercent =
-      item.total > 0
-        ? (item.smallCount / item.total) * 100
-        : 0;
-
-    const stat = await PatternStat.findOneAndUpdate(
-      {
-        datasetId,
-        first: item.first,
-        second: item.second
-      },
-      {
-        $inc: {
-          total: item.total,
-          bigCount: item.bigCount,
-          smallCount: item.smallCount
-        }
-      },
-      {
-        upsert: true,
-        new: true,
-        setDefaultsOnInsert: true
-      }
-    );
-
-    stat.bigPercent =
-      stat.total > 0
-        ? (stat.bigCount / stat.total) * 100
-        : 0;
-
-    stat.smallPercent =
-      stat.total > 0
-        ? (stat.smallCount / stat.total) * 100
-        : 0;
-
-    await stat.save();
-
-    stats.push(stat);
-  }
+  const stat = await updatePatternStat(
+    datasetId,
+    first,
+    second,
+    resultType
+  );
 
   return {
-    events: eventDocuments,
-    stats
+    event,
+    stat
   };
 }
 
 module.exports = {
-  getSize,
-  createEvents,
-  processEvents
+  processNewOutcome,
+  updatePatternStat
 };
