@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <meta name="theme-color" content="#050505">
+
+  <title>Analyzer — Dashboard</title>
+
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+
+<body>
+
+  <div class="app">
+
+    <!-- Top bar -->
+    <header class="topbar">
+
+      <button
+        class="menu-button"
+        id="menuButton"
+        aria-label="Open menu"
+      >
+        ☰
+      </button>
+
+      <div class="topbar-title">
+        <span>ANALYZER</span>
+        <small>SEQUENCE SYSTEM</small>
+      </div>
+
+      <div class="online-status">
+        <span></span>
+        ONLINE
+      </div>
+
+    </header>
+
+    <!-- Dataset menu -->
+    <aside class="side-menu" id="sideMenu">
+
+      <div class="menu-header">
+        <div>
+          <small>DATASETS</small>
+          <h2>My Data</h2>
+        </div>
+
+        <button id="closeMenu">×</button>
+      </div>
+
+      <button class="new-dataset">
+        + NEW DATASET
+      </button>
+
+      <div class="dataset-list">
+
+        <button class="dataset-item active">
+          <span>Dataset 01</span>
+          <small>Current</small>
+        </button>
+
+        <button class="dataset-item">
+          <span>Dataset 02</span>
+          <small>0 outcomes</small>
+        </button>
+
+      </div>
+
+      <div class="menu-bottom">
+
+        <button>Rename Dataset</button>
+        <button>Export Data</button>
+        <button>Delete Dataset</button>
+        <button>Logout</button>
+
+      </div>
+
+    </aside>
+
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <!-- Main -->
+    <main class="dashboard">
+
+      <section class="dataset-heading">
+        <div>
+          <small>CURRENT DATASET</small>
+          <h1>Dataset 01</h1>
+        </div>
+
+        <span class="dataset-badge">
+          ACTIVE
+        </span>
+      </section>
+
+      <!-- Input -->
+      <section class="panel input-panel">
+
+        <div class="panel-title">
+          <div>
+            <small>DATA INPUT</small>
+            <h2>Add Outcomes</h2>
+          </div>
+        </div>
+
+        <textarea
+          id="outcomeInput"
+          placeholder="Enter outcomes separated by spaces, commas or new lines..."
+        ></textarea>
+
+        <div class="input-actions">
+
+          <span id="inputCount">
+            0 outcomes
+          </span>
+
+          <button id="analyzeButton">
+            ANALYZE
+            <span>→</span>
+          </button>
+
+        </div>
+
+      </section>
+
+      <!-- Stats -->
+      <section class="stats-grid">
+
+        <div class="stat-card">
+          <small>TOTAL OUTCOMES</small>
+          <strong id="totalOutcomes">0</strong>
+        </div>
+
+        <div class="stat-card">
+          <small>PATTERNS</small>
+          <strong id="totalPatterns">100</strong>
+        </div>
+
+        <div class="stat-card">
+          <small>EVENTS</small>
+          <strong id="totalEvents">0</strong>
+        </div>
+
+      </section>
+
+      <!-- Pattern -->
+      <section class="panel pattern-panel">
+
+        <div class="panel-title">
+          <div>
+            <small>PATTERN ANALYSIS</small>
+            <h2 id="selectedPattern">9-8</h2>
+          </div>
+
+          <select id="patternSelect">
+            <option value="9-8">9-8</option>
+            <option value="8-1">8-1</option>
+            <option value="1-9">1-9</option>
+          </select>
+        </div>
+
+        <div class="percentage-grid">
+
+          <div class="percentage-card">
+            <small>BIG</small>
+            <strong id="bigPercent">0%</strong>
+            <span id="bigCount">0 records</span>
+          </div>
+
+          <div class="percentage-card">
+            <small>SMALL</small>
+            <strong id="smallPercent">0%</strong>
+            <span id="smallCount">0 records</span>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- Recent events -->
+      <section class="panel">
+
+        <div class="panel-title">
+          <div>
+            <small>SEQUENCE</small>
+            <h2>Recent Events</h2>
+          </div>
+        </div>
+
+        <div id="recentEvents" class="events">
+
+          <div class="empty-state">
+            No events yet.
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- All patterns -->
+      <section class="panel">
+
+        <div class="panel-title">
+          <div>
+            <small>STATISTICS</small>
+            <h2>All Patterns</h2>
+          </div>
+        </div>
+
+        <div id="patternsGrid" class="patterns-grid"></div>
+
+      </section>
+
+    </main>
+
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>
