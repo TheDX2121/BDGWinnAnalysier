@@ -1,4 +1,3 @@
-
 function validateNumbers(numbers) {
   if (!Array.isArray(numbers)) {
     return {
@@ -22,7 +21,8 @@ function validateNumbers(numbers) {
     ) {
       return {
         valid: false,
-        message: "Only numbers from 0 to 9 are allowed."
+        message:
+          "Only numbers from 0 to 9 are allowed."
       };
     }
   }
