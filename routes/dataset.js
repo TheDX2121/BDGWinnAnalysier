@@ -6,19 +6,17 @@ const Event = require("../models/Event");
 const PatternStat = require("../models/PatternStat");
 const Sequence = require("../models/Sequence");
 
-const authMiddleware = require("../middleware/auth");
+const auth = require("../middleware/auth");
 
 const router = express.Router();
 
-router.use(authMiddleware);
+router.use(auth);
 
 router.get("/", async (req, res) => {
   try {
     const datasets = await Dataset.find({
       userId: req.user.userId
-    }).sort({
-      createdAt: -1
-    });
+    }).sort({ createdAt: -1 });
 
     res.json({
       success: true,
@@ -80,18 +78,19 @@ router.patch("/:id", async (req, res) => {
       });
     }
 
-    const dataset = await Dataset.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        userId: req.user.userId
-      },
-      {
-        name: name.trim()
-      },
-      {
-        new: true
-      }
-    );
+    const dataset =
+      await Dataset.findOneAndUpdate(
+        {
+          _id: req.params.id,
+          userId: req.user.userId
+        },
+        {
+          name: name.trim()
+        },
+        {
+          new: true
+        }
+      );
 
     if (!dataset) {
       return res.status(404).json({
@@ -116,12 +115,11 @@ router.patch("/:id", async (req, res) => {
 
 router.delete("/:id", async (req, res) => {
   try {
-    const filter = {
-      _id: req.params.id,
-      userId: req.user.userId
-    };
-
-    const dataset = await Dataset.findOne(filter);
+    const dataset =
+      await Dataset.findOne({
+        _id: req.params.id,
+        userId: req.user.userId
+      });
 
     if (!dataset) {
       return res.status(404).json({
@@ -154,7 +152,7 @@ router.delete("/:id", async (req, res) => {
 
     res.json({
       success: true,
-      message: "Dataset and its data deleted."
+      message: "Dataset deleted."
     });
   } catch (error) {
     console.error(error);
