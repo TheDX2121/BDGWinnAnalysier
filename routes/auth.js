@@ -1,7 +1,6 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-
 const User = require("../models/User");
 
 const router = express.Router();
@@ -13,9 +12,7 @@ function createToken(user) {
       email: user.email
     },
     process.env.JWT_SECRET,
-    {
-      expiresIn: "7d"
-    }
+    { expiresIn: "7d" }
   );
 }
 
@@ -33,40 +30,35 @@ router.post("/register", async (req, res) => {
     if (password.length < 6) {
       return res.status(400).json({
         success: false,
-        message: "Password must contain at least 6 characters."
+        message: "Password must be at least 6 characters."
       });
     }
 
-    const normalizedEmail = email
-      .trim()
-      .toLowerCase();
+    const normalizedEmail =
+      email.trim().toLowerCase();
 
-    const exists = await User.findOne({
+    const existing = await User.findOne({
       email: normalizedEmail
     });
 
-    if (exists) {
+    if (existing) {
       return res.status(409).json({
         success: false,
         message: "Account already exists."
       });
     }
 
-    const passwordHash = await bcrypt.hash(
-      password,
-      12
-    );
+    const passwordHash =
+      await bcrypt.hash(password, 12);
 
     const user = await User.create({
       email: normalizedEmail,
       passwordHash
     });
 
-    const token = createToken(user);
-
     res.status(201).json({
       success: true,
-      token,
+      token: createToken(user),
       user: {
         id: user._id,
         email: user.email
@@ -93,12 +85,8 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    const normalizedEmail = email
-      .trim()
-      .toLowerCase();
-
     const user = await User.findOne({
-      email: normalizedEmail
+      email: email.trim().toLowerCase()
     });
 
     if (!user) {
@@ -108,10 +96,11 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    const valid = await bcrypt.compare(
-      password,
-      user.passwordHash
-    );
+    const valid =
+      await bcrypt.compare(
+        password,
+        user.passwordHash
+      );
 
     if (!valid) {
       return res.status(401).json({
@@ -120,11 +109,9 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    const token = createToken(user);
-
     res.json({
       success: true,
-      token,
+      token: createToken(user),
       user: {
         id: user._id,
         email: user.email
