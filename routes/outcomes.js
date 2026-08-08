@@ -1,8 +1,9 @@
 const express = require("express");
 
 const Dataset = require("../models/Dataset");
+const Outcome = require("../models/Outcome");
 
-const authMiddleware =
+const auth =
   require("../middleware/auth");
 
 const {
@@ -15,9 +16,9 @@ const {
 
 const router = express.Router();
 
-router.use(authMiddleware);
+router.use(auth);
 
-async function getOwnedDataset(
+async function ownedDataset(
   datasetId,
   userId
 ) {
@@ -28,16 +29,18 @@ async function getOwnedDataset(
 }
 
 /*
-  POST
+  LIVE / NORMAL INPUT
 
-  /api/outcomes/:datasetId
-
-  Normal/live outcome entry.
-
-  Example:
+  POST /api/outcomes/:datasetId
 
   {
     "numbers": [9]
+  }
+
+  or
+
+  {
+    "numbers": [9,8,1]
   }
 */
 
@@ -59,12 +62,13 @@ router.post(
       if (!validation.valid) {
         return res.status(400).json({
           success: false,
-          message: validation.message
+          message:
+            validation.message
         });
       }
 
       const dataset =
-        await getOwnedDataset(
+        await ownedDataset(
           datasetId,
           req.user.userId
         );
@@ -72,7 +76,8 @@ router.post(
       if (!dataset) {
         return res.status(404).json({
           success: false,
-          message: "Dataset not found."
+          message:
+            "Dataset not found."
         });
       }
 
@@ -84,14 +89,11 @@ router.post(
 
       res.status(201).json({
         success: true,
+        mode: "live",
         ...result
       });
-
     } catch (error) {
-      console.error(
-        "Outcome error:",
-        error
-      );
+      console.error(error);
 
       res.status(500).json({
         success: false,
@@ -103,18 +105,12 @@ router.post(
 );
 
 /*
-  POST
+  HISTORY IMPORT
 
-  /api/outcomes/:datasetId/import
-
-  Used for large history imports.
-
-  Example:
+  POST /api/outcomes/:datasetId/import
 
   {
-    "numbers": [
-      9,8,1,9,7,6,2,4
-    ]
+    "numbers": [9,8,1,9,7]
   }
 */
 
@@ -136,12 +132,13 @@ router.post(
       if (!validation.valid) {
         return res.status(400).json({
           success: false,
-          message: validation.message
+          message:
+            validation.message
         });
       }
 
       const dataset =
-        await getOwnedDataset(
+        await ownedDataset(
           datasetId,
           req.user.userId
         );
@@ -149,7 +146,8 @@ router.post(
       if (!dataset) {
         return res.status(404).json({
           success: false,
-          message: "Dataset not found."
+          message:
+            "Dataset not found."
         });
       }
 
@@ -161,15 +159,11 @@ router.post(
 
       res.status(201).json({
         success: true,
-        mode: "history-import",
+        mode: "history",
         ...result
       });
-
     } catch (error) {
-      console.error(
-        "Import error:",
-        error
-      );
+      console.error(error);
 
       res.status(500).json({
         success: false,
@@ -180,18 +174,12 @@ router.post(
   }
 );
 
-/*
-  GET
-
-  /api/outcomes/:datasetId
-*/
-
 router.get(
   "/:datasetId",
   async (req, res) => {
     try {
       const dataset =
-        await getOwnedDataset(
+        await ownedDataset(
           req.params.datasetId,
           req.user.userId
         );
@@ -199,16 +187,15 @@ router.get(
       if (!dataset) {
         return res.status(404).json({
           success: false,
-          message: "Dataset not found."
+          message:
+            "Dataset not found."
         });
       }
 
-      const Outcome =
-        require("../models/Outcome");
-
       const outcomes =
         await Outcome.find({
-          datasetId: dataset._id
+          datasetId:
+            dataset._id
         }).sort({
           sequence: 1
         });
@@ -217,7 +204,6 @@ router.get(
         success: true,
         outcomes
       });
-
     } catch (error) {
       console.error(error);
 
