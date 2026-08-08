@@ -1,3 +1,4 @@
+
 function validateNumbers(numbers) {
   if (!Array.isArray(numbers)) {
     return {
@@ -21,8 +22,7 @@ function validateNumbers(numbers) {
     ) {
       return {
         valid: false,
-        message:
-          "Every outcome must be a digit from 0 to 9."
+        message: "Only numbers from 0 to 9 are allowed."
       };
     }
   }
