@@ -1,6 +1,11 @@
 let datasets = [];
+
 let activeDataset = null;
+
 let allStats = [];
+
+
+// ELEMENTS
 
 const datasetButton =
   document.getElementById(
@@ -42,43 +47,38 @@ const importStatus =
     "importStatus"
   );
 
-function logout() {
-  localStorage.removeItem(
-    "analyzer_token"
-  );
 
-  location.href = "/";
-}
-
-document
-  .getElementById("logoutButton")
-  .addEventListener(
-    "click",
-    logout
-  );
-
+// DATASET MENU
 
 datasetButton.addEventListener(
   "click",
   () => {
+
     datasetPanel.classList.toggle(
       "hidden"
     );
+
   }
 );
 
 
 document
-  .getElementById("closeDataset")
+  .getElementById(
+    "closeDataset"
+  )
   .addEventListener(
     "click",
     () => {
+
       datasetPanel.classList.add(
         "hidden"
       );
+
     }
   );
 
+
+// LOAD DATASETS
 
 async function loadDatasets() {
 
@@ -89,10 +89,13 @@ async function loadDatasets() {
         "/api/datasets"
       );
 
+
     datasets =
       data.datasets || [];
 
+
     renderDatasets();
+
 
     if (!datasets.length) {
 
@@ -103,71 +106,97 @@ async function loadDatasets() {
       return;
     }
 
+
     const savedId =
       localStorage.getItem(
         "active_dataset"
       );
 
+
     activeDataset =
       datasets.find(
         item =>
           item._id === savedId
-      ) || datasets[0];
+      ) ||
+      datasets[0];
+
 
     await activateDataset(
       activeDataset._id
     );
 
+
   } catch (error) {
+
+    console.error(error);
 
     alert(error.message);
   }
 }
 
 
+// RENDER DATASETS
+
 function renderDatasets() {
 
   datasetList.innerHTML = "";
 
-  datasets.forEach(dataset => {
 
-    const button =
-      document.createElement(
-        "button"
+  datasets.forEach(
+    dataset => {
+
+      const button =
+        document.createElement(
+          "button"
+        );
+
+
+      button.className =
+        "dataset-item";
+
+
+      if (
+        activeDataset &&
+        dataset._id ===
+          activeDataset._id
+      ) {
+
+        button.classList.add(
+          "active"
+        );
+      }
+
+
+      button.innerHTML = `
+        <span>
+          ${escapeHtml(dataset.name)}
+        </span>
+
+        <small>
+          OPEN
+        </small>
+      `;
+
+
+      button.addEventListener(
+        "click",
+        () =>
+          activateDataset(
+            dataset._id
+          )
       );
 
-    button.className =
-      "dataset-item";
 
-    if (
-      activeDataset &&
-      dataset._id ===
-        activeDataset._id
-    ) {
-      button.classList.add(
-        "active"
+      datasetList.appendChild(
+        button
       );
+
     }
-
-    button.innerHTML = `
-      <span>${escapeHtml(dataset.name)}</span>
-      <small>OPEN</small>
-    `;
-
-    button.addEventListener(
-      "click",
-      () =>
-        activateDataset(
-          dataset._id
-        )
-    );
-
-    datasetList.appendChild(
-      button
-    );
-  });
+  );
 }
 
+
+// CREATE DATASET
 
 async function createDataset(
   name
@@ -178,18 +207,24 @@ async function createDataset(
     const data =
       await API.post(
         "/api/datasets",
-        { name }
+        {
+          name
+        }
       );
+
 
     datasets.unshift(
       data.dataset
     );
 
+
     renderDatasets();
+
 
     await activateDataset(
       data.dataset._id
     );
+
 
   } catch (error) {
 
@@ -211,19 +246,27 @@ document
           "newDatasetName"
         );
 
+
       const name =
         input.value.trim();
 
-      if (!name) return;
+
+      if (!name) {
+        return;
+      }
+
 
       await createDataset(
         name
       );
 
+
       input.value = "";
     }
   );
 
+
+// ACTIVATE DATASET
 
 async function activateDataset(
   datasetId
@@ -235,21 +278,29 @@ async function activateDataset(
         item._id === datasetId
     );
 
-  if (!activeDataset) return;
+
+  if (!activeDataset) {
+    return;
+  }
+
 
   localStorage.setItem(
     "active_dataset",
     datasetId
   );
 
+
   datasetName.textContent =
     activeDataset.name;
+
 
   datasetPanel.classList.add(
     "hidden"
   );
 
+
   renderDatasets();
+
 
   await loadAnalysis();
 
@@ -257,9 +308,14 @@ async function activateDataset(
 }
 
 
+// LOAD ANALYSIS
+
 async function loadAnalysis() {
 
-  if (!activeDataset) return;
+  if (!activeDataset) {
+    return;
+  }
+
 
   try {
 
@@ -268,18 +324,23 @@ async function loadAnalysis() {
         `/api/analysis/${activeDataset._id}/patterns`
       );
 
+
     allStats =
       data.stats || [];
+
 
     renderPatternSelector();
 
     renderPatternTable();
 
+
     if (
       patternSelect.value
     ) {
+
       renderSelectedPattern();
     }
+
 
   } catch (error) {
 
@@ -287,6 +348,8 @@ async function loadAnalysis() {
   }
 }
 
+
+// GET PATTERN
 
 function getStat(
   first,
@@ -301,9 +364,12 @@ function getStat(
 }
 
 
+// PATTERN SELECTOR
+
 function renderPatternSelector() {
 
   patternSelect.innerHTML = "";
+
 
   for (
     let first = 0;
@@ -322,11 +388,14 @@ function renderPatternSelector() {
           "option"
         );
 
+
       option.value =
         `${first}-${second}`;
 
+
       option.textContent =
         `${first} - ${second}`;
+
 
       patternSelect.appendChild(
         option
@@ -342,6 +411,8 @@ patternSelect.addEventListener(
 );
 
 
+// SELECTED PATTERN
+
 function renderSelectedPattern() {
 
   const [
@@ -352,47 +423,57 @@ function renderSelectedPattern() {
       .split("-")
       .map(Number);
 
+
   const stat =
     getStat(
       first,
       second
     );
 
+
   document.getElementById(
     "selectedPattern"
   ).textContent =
     `${first} - ${second}`;
+
 
   document.getElementById(
     "totalCount"
   ).textContent =
     stat?.total || 0;
 
+
   document.getElementById(
     "bigCount"
   ).textContent =
     stat?.bigCount || 0;
+
 
   document.getElementById(
     "smallCount"
   ).textContent =
     stat?.smallCount || 0;
 
+
   document.getElementById(
     "bigPercent"
   ).textContent =
     `${stat?.bigPercent || 0}%`;
+
 
   document.getElementById(
     "smallPercent"
   ).textContent =
     `${stat?.smallPercent || 0}%`;
 
+
   renderNextNumbers(
     stat?.nextNumbers || []
   );
 }
 
+
+// NEXT NUMBERS
 
 function renderNextNumbers(
   numbers
@@ -403,7 +484,9 @@ function renderNextNumbers(
       "nextNumbers"
     );
 
+
   container.innerHTML = "";
+
 
   if (!numbers.length) {
 
@@ -415,28 +498,37 @@ function renderNextNumbers(
     return;
   }
 
+
   const sorted =
     [...numbers].sort(
       (a, b) =>
         b.count - a.count
     );
 
-  sorted.forEach(item => {
 
-    const span =
-      document.createElement(
-        "span"
+  sorted.forEach(
+    item => {
+
+      const span =
+        document.createElement(
+          "span"
+        );
+
+
+      span.textContent =
+        `${item.number}: ${item.count}`;
+
+
+      container.appendChild(
+        span
       );
 
-    span.textContent =
-      `${item.number}: ${item.count}`;
-
-    container.appendChild(
-      span
-    );
-  });
+    }
+  );
 }
 
+
+// PATTERN TABLE
 
 function renderPatternTable() {
 
@@ -445,7 +537,9 @@ function renderPatternTable() {
       "patternTable"
     );
 
+
   container.innerHTML = "";
+
 
   for (
     let first = 0;
@@ -465,19 +559,24 @@ function renderPatternTable() {
           second
         );
 
+
       const cell =
         document.createElement(
           "div"
         );
 
+
       cell.className =
         "pattern-cell";
+
 
       const bigPercent =
         stat?.bigPercent || 0;
 
+
       const smallPercent =
         stat?.smallPercent || 0;
+
 
       cell.innerHTML = `
         <div class="pattern-name">
@@ -489,9 +588,11 @@ function renderPatternTable() {
         </div>
 
         <div class="pattern-percent">
-          B ${bigPercent}% · S ${smallPercent}%
+          B ${bigPercent}% ·
+          S ${smallPercent}%
         </div>
       `;
+
 
       cell.addEventListener(
         "click",
@@ -500,14 +601,18 @@ function renderPatternTable() {
           patternSelect.value =
             `${first}-${second}`;
 
+
           renderSelectedPattern();
+
 
           window.scrollTo({
             top: 250,
             behavior: "smooth"
           });
+
         }
       );
+
 
       container.appendChild(
         cell
@@ -516,6 +621,8 @@ function renderPatternTable() {
   }
 }
 
+
+// ADD LIVE OUTCOME
 
 async function addLiveOutcome() {
 
@@ -527,10 +634,12 @@ async function addLiveOutcome() {
     return;
   }
 
+
   const value =
     Number(
       liveOutcome.value
     );
+
 
   if (
     !Number.isInteger(value) ||
@@ -544,6 +653,7 @@ async function addLiveOutcome() {
     return;
   }
 
+
   try {
 
     const data =
@@ -554,19 +664,24 @@ async function addLiveOutcome() {
         }
       );
 
+
     liveOutcome.value = "";
+
 
     const imported =
       data.imported || 0;
 
+
     liveStatus.textContent =
       imported
         ? `Outcome ${value} recorded.`
-        : "Outcome already exists in imported overlap.";
+        : "Outcome was not added.";
+
 
     await loadAnalysis();
 
     await loadRecentWindow();
+
 
   } catch (error) {
 
@@ -593,11 +708,14 @@ liveOutcome.addEventListener(
     if (
       event.key === "Enter"
     ) {
+
       addLiveOutcome();
     }
   }
 );
 
+
+// IMPORT HISTORY
 
 async function importHistory() {
 
@@ -609,21 +727,28 @@ async function importHistory() {
     return;
   }
 
+
   const input =
     document.getElementById(
       "historyInput"
     );
 
+
   const text =
     input.value.trim();
 
-  if (!text) return;
+
+  if (!text) {
+    return;
+  }
+
 
   const numbers =
     text
       .split(/[\s,]+/)
       .filter(Boolean)
       .map(Number);
+
 
   if (
     numbers.some(
@@ -640,6 +765,7 @@ async function importHistory() {
     return;
   }
 
+
   try {
 
     const data =
@@ -650,14 +776,18 @@ async function importHistory() {
         }
       );
 
+
     importStatus.textContent =
-      `Imported ${data.imported} new outcomes. Skipped ${data.skipped} overlapping outcomes.`;
+      `Imported ${data.imported} new outcomes. Skipped ${data.skipped || 0} overlapping outcomes.`;
+
 
     input.value = "";
+
 
     await loadAnalysis();
 
     await loadRecentWindow();
+
 
   } catch (error) {
 
@@ -677,9 +807,14 @@ document
   );
 
 
+// RECENT WINDOW
+
 async function loadRecentWindow() {
 
-  if (!activeDataset) return;
+  if (!activeDataset) {
+    return;
+  }
+
 
   try {
 
@@ -688,8 +823,10 @@ async function loadRecentWindow() {
         `/api/outcomes/${activeDataset._id}`
       );
 
+
     const outcomes =
       data.outcomes || [];
+
 
     if (!outcomes.length) {
 
@@ -702,23 +839,28 @@ async function loadRecentWindow() {
       return;
     }
 
+
     const length =
       outcomes.length;
+
 
     const a =
       length >= 3
         ? outcomes[length - 3].number
         : null;
 
+
     const b =
       length >= 2
         ? outcomes[length - 2].number
         : null;
 
+
     const c =
       length >= 1
         ? outcomes[length - 1].number
         : null;
+
 
     updateWindow(
       a,
@@ -726,12 +868,15 @@ async function loadRecentWindow() {
       c
     );
 
+
   } catch (error) {
 
     console.error(error);
   }
 }
 
+
+// UPDATE WINDOW
 
 function updateWindow(
   a,
@@ -744,19 +889,24 @@ function updateWindow(
       ".number-box strong"
     );
 
+
   boxes[0].textContent =
     a ?? "—";
+
 
   boxes[1].textContent =
     b ?? "—";
 
+
   boxes[2].textContent =
     c ?? "—";
+
 
   const result =
     document.getElementById(
       "lastResult"
     );
+
 
   if (c === null) {
 
@@ -765,12 +915,15 @@ function updateWindow(
     return;
   }
 
+
   result.textContent =
     c >= 5
       ? "BIG"
       : "SMALL";
 }
 
+
+// ESCAPE HTML
 
 function escapeHtml(
   value
@@ -781,19 +934,15 @@ function escapeHtml(
       "div"
     );
 
+
   div.textContent =
     value;
+
 
   return div.innerHTML;
 }
 
 
-if (
-  !localStorage.getItem(
-    "analyzer_token"
-  )
-) {
-  location.href = "/";
-} else {
-  loadDatasets();
-}
+// START APP
+
+loadDatasets();
