@@ -4,6 +4,7 @@ const router = express.Router();
 
 const Outcome = require("../models/Outcome");
 const analyzer = require("../services/analyzer");
+const { getSize } = require("../utils/classifier");
 
 
 // =====================================================
@@ -15,9 +16,11 @@ router.get(
   async (req, res) => {
     try {
       const outcomes = await Outcome.find({
-        dataset: req.params.datasetId
+        datasetId: req.params.datasetId
       })
-        .sort({ createdAt: 1 })
+        .sort({
+          sequence: 1
+        })
         .lean();
 
       return res.json({
@@ -33,7 +36,9 @@ router.get(
 
       return res.status(500).json({
         success: false,
-        message: error.message
+        message:
+          error.message ||
+          "Failed to load outcomes."
       });
     }
   }
@@ -53,8 +58,12 @@ router.post(
         req.params.datasetId;
 
 
-      // Accept numbers: [9]
-      // Also accept number: 9
+      // Accept:
+      // { number: 9 }
+      //
+      // OR:
+      // { numbers: [9] }
+
       let number;
 
       if (
@@ -75,6 +84,7 @@ router.post(
 
 
       // Validate number
+
       if (
         !Number.isInteger(number) ||
         number < 0 ||
@@ -89,84 +99,65 @@ router.post(
 
 
       // -------------------------------------------------
-      // Get the previous two outcomes
+      // Find latest sequence
       // -------------------------------------------------
 
-      const previous =
-        await Outcome.find({
-          dataset: datasetId
+      const lastOutcome =
+        await Outcome.findOne({
+          datasetId
         })
           .sort({
-            createdAt: -1
+            sequence: -1
           })
-          .limit(2)
           .lean();
 
 
+      const sequence =
+        lastOutcome
+          ? lastOutcome.sequence + 1
+          : 1;
+
+
       // -------------------------------------------------
-      // Save actual outcome
+      // Calculate Big / Small
+      // -------------------------------------------------
+
+      const size =
+        getSize(number);
+
+
+      // -------------------------------------------------
+      // Create actual outcome
       // -------------------------------------------------
 
       const outcome =
         await Outcome.create({
-          dataset: datasetId,
-          number: number
+          datasetId,
+          sequence,
+          number,
+          size
         });
 
 
       // -------------------------------------------------
-      // Pattern analysis
-      //
-      // Example:
-      //
-      // Previous:
-      // 9, 8
-      //
-      // New:
-      // 1
-      //
-      // Record:
-      // 9-8 -> 1
+      // Analyze previous two → new outcome
       // -------------------------------------------------
 
-      if (
-        previous.length >= 2
-      ) {
-
-        const second =
-          previous[0].number;
-
-        const first =
-          previous[1].number;
-
-
-        if (
-          analyzer &&
-          typeof
-            analyzer.processNewOutcome ===
-              "function"
-        ) {
-
-          await analyzer.processNewOutcome({
-            datasetId,
-            first,
-            second,
-            next: number
-          });
-
-        } else {
-
-          console.warn(
-            "processNewOutcome() not available in analyzer.js"
-          );
-        }
-      }
+      const analysis =
+        await analyzer.processNewOutcome(
+          datasetId,
+          outcome
+        );
 
 
       return res.status(201).json({
         success: true,
+
         imported: 1,
-        outcome
+
+        outcome,
+
+        analysis
       });
 
 
@@ -189,7 +180,7 @@ router.post(
 
 
 // =====================================================
-// IMPORT MULTIPLE OUTCOMES
+// IMPORT HISTORY
 // =====================================================
 
 router.post(
@@ -250,63 +241,95 @@ router.post(
 
 
       // -------------------------------------------------
-      // IMPORTANT
-      //
-      // Every imported outcome is stored.
-      //
-      // We DO NOT remove repeated patterns.
-      //
-      // Example:
-      //
-      // 9 8 1
-      // ...
-      // 9 8 1
-      //
-      // Both occurrences remain in the dataset.
+      // Continue sequence
       // -------------------------------------------------
 
-      const documents =
-        converted.map(
-          number => ({
-            dataset: datasetId,
-            number
+      const lastOutcome =
+        await Outcome.findOne({
+          datasetId
+        })
+          .sort({
+            sequence: -1
           })
-        );
+          .lean();
 
 
-      const created =
-        await Outcome.insertMany(
-          documents
-        );
+      let sequence =
+        lastOutcome
+          ? lastOutcome.sequence + 1
+          : 1;
 
 
       // -------------------------------------------------
-      // Rebuild pattern statistics
+      // Create outcomes one-by-one
+      //
+      // This is intentional.
+      //
+      // Every new outcome is passed through
+      // analyzer.processNewOutcome()
+      //
+      // So:
+      //
+      // 9 8 1
+      //
+      // records:
+      //
+      // 9-8 → 1
+      //
+      // and if later:
+      //
+      // 9 8 1
+      //
+      // appears again:
+      //
+      // 9-8 → 1
+      //
+      // gets counted again.
       // -------------------------------------------------
 
-      if (
-        analyzer &&
-        typeof analyzer.rebuildDataset ===
-          "function"
+      let imported = 0;
+
+      const createdOutcomes = [];
+
+
+      for (
+        const number of converted
       ) {
 
-        await analyzer.rebuildDataset(
-          datasetId
+        const size =
+          getSize(number);
+
+
+        const outcome =
+          await Outcome.create({
+            datasetId,
+            sequence,
+            number,
+            size
+          });
+
+
+        await analyzer.processNewOutcome(
+          datasetId,
+          outcome
         );
 
-      } else {
 
-        console.warn(
-          "rebuildDataset() not available in analyzer.js"
+        createdOutcomes.push(
+          outcome
         );
+
+
+        imported += 1;
+
+        sequence += 1;
       }
 
 
       return res.json({
         success: true,
 
-        imported:
-          created.length,
+        imported,
 
         skipped: 0
       });
@@ -331,7 +354,7 @@ router.post(
 
 
 // =====================================================
-// DELETE ALL OUTCOMES OF A DATASET
+// DELETE ALL OUTCOMES OF DATASET
 // =====================================================
 
 router.delete(
@@ -342,22 +365,31 @@ router.delete(
 
       const result =
         await Outcome.deleteMany({
-          dataset:
+          datasetId:
             req.params.datasetId
         });
 
 
-      // Rebuild empty statistics
-      if (
-        analyzer &&
-        typeof analyzer.rebuildDataset ===
-          "function"
-      ) {
+      // Also remove pattern/event data
+      // for this dataset.
 
-        await analyzer.rebuildDataset(
+      const Event =
+        require("../models/Event");
+
+      const PatternStat =
+        require("../models/PatternStat");
+
+
+      await Event.deleteMany({
+        datasetId:
           req.params.datasetId
-        );
-      }
+      });
+
+
+      await PatternStat.deleteMany({
+        datasetId:
+          req.params.datasetId
+      });
 
 
       return res.json({
