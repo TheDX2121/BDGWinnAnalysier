@@ -1,4 +1,3 @@
-
 const mongoose = require("mongoose");
 
 const nextNumberSchema = new mongoose.Schema(
@@ -68,24 +67,11 @@ const patternStatSchema = new mongoose.Schema(
       default: 0
     },
 
-    /*
-      Exact next-number frequency
-
-      Example:
-
-      9-8:
-
-      1 → 5
-      4 → 2
-      7 → 3
-    */
-
     nextNumbers: {
       type: [nextNumberSchema],
       default: []
     }
   },
-
   {
     timestamps: true
   }
