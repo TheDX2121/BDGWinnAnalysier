@@ -1,88 +1,346 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
 
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
 
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"
-  >
+  />
 
   <title>Analyzer Dashboard</title>
 
   <link
     rel="stylesheet"
-    href="dashboard.css"
-  >
+    href="/css/dashboard.css"
+  />
 
 </head>
 
 <body>
 
-  <header>
+  <div class="app">
 
-    <div>
-      <strong>ANALYZER</strong>
+    <!-- HEADER -->
+
+    <header class="topbar">
+
+      <div class="brand-mini">
+        <div class="mini-icon">A</div>
+
+        <div>
+          <strong>ANALYZER</strong>
+          <span>LIVE DATA ENGINE</span>
+        </div>
+      </div>
+
+      <div class="top-actions">
+
+        <button
+          id="datasetButton"
+          class="dataset-button"
+        >
+          <span id="datasetName">
+            Select Dataset
+          </span>
+          <span>⌄</span>
+        </button>
+
+        <button
+          id="logoutButton"
+          class="logout-button"
+        >
+          Logout
+        </button>
+
+      </div>
+
+    </header>
+
+
+    <!-- DATASET MENU -->
+
+    <div
+      id="datasetPanel"
+      class="dataset-panel hidden"
+    >
+
+      <div class="panel-title">
+        <span>DATASETS</span>
+
+        <button
+          id="closeDataset"
+        >
+          ×
+        </button>
+      </div>
+
+      <div
+        id="datasetList"
+        class="dataset-list"
+      ></div>
+
+      <div class="dataset-create">
+
+        <input
+          id="newDatasetName"
+          placeholder="New dataset name"
+          maxlength="100"
+        />
+
+        <button
+          id="createDatasetButton"
+        >
+          CREATE
+        </button>
+
+      </div>
+
     </div>
 
-    <button id="logoutBtn">
-      Logout
-    </button>
 
-  </header>
+    <!-- MAIN SINGLE SCREEN -->
 
-  <main>
+    <main class="dashboard">
 
-    <section class="top">
+      <!-- LIVE INPUT -->
 
-      <div>
-        <h1>Dashboard</h1>
-        <p>Big / Small Pattern Analysis</p>
-      </div>
+      <section class="hero-card">
 
-      <select id="datasetSelect">
-        <option value="">
-          Select Dataset
-        </option>
-      </select>
+        <div class="section-label">
+          LIVE OUTCOME
+        </div>
 
-    </section>
+        <div class="live-row">
 
-    <section class="input-box">
+          <input
+            id="liveOutcome"
+            type="number"
+            min="0"
+            max="9"
+            inputmode="numeric"
+            placeholder="0-9"
+          />
 
-      <h2>Add Outcomes</h2>
+          <button
+            id="addOutcomeButton"
+          >
+            ADD OUTCOME
+          </button>
 
-      <p>
-        Example: 9,8,1,9
-      </p>
+        </div>
 
-      <textarea
-        id="outcomeInput"
-        placeholder="Enter numbers separated by commas"
-      ></textarea>
+        <div
+          id="liveStatus"
+          class="status"
+        ></div>
 
-      <button id="addBtn">
-        Add Outcomes
-      </button>
+      </section>
 
-    </section>
 
-    <section>
+      <!-- CURRENT WINDOW -->
 
-      <h2>Pattern Statistics</h2>
+      <section class="window-card">
 
-      <div id="stats">
-        Select a dataset.
-      </div>
+        <div class="section-heading">
+          <div>
+            <span class="section-label">
+              SLIDING WINDOW
+            </span>
 
-    </section>
+            <h2>
+              Previous 2 → Next
+            </h2>
+          </div>
 
-  </main>
+          <div
+            id="lastResult"
+            class="last-result"
+          >
+            —
+          </div>
+        </div>
 
-  <script src="dashboard.js"></script>
+        <div
+          id="windowDisplay"
+          class="window-display"
+        >
+
+          <div class="number-box">
+            <span>A</span>
+            <strong>—</strong>
+          </div>
+
+          <div class="arrow">→</div>
+
+          <div class="number-box">
+            <span>B</span>
+            <strong>—</strong>
+          </div>
+
+          <div class="arrow">→</div>
+
+          <div class="number-box active">
+            <span>C</span>
+            <strong>—</strong>
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- PATTERN ANALYSIS -->
+
+      <section class="analysis-card">
+
+        <div class="analysis-header">
+
+          <div>
+            <span class="section-label">
+              PATTERN ANALYSIS
+            </span>
+
+            <h2 id="selectedPattern">
+              Select a pattern
+            </h2>
+          </div>
+
+          <select
+            id="patternSelect"
+          ></select>
+
+        </div>
+
+
+        <div class="stats-grid">
+
+          <div class="stat-box">
+            <span>TOTAL</span>
+            <strong id="totalCount">
+              0
+            </strong>
+          </div>
+
+          <div class="stat-box big">
+            <span>BIG</span>
+            <strong id="bigCount">
+              0
+            </strong>
+
+            <small id="bigPercent">
+              0%
+            </small>
+          </div>
+
+          <div class="stat-box small">
+            <span>SMALL</span>
+            <strong id="smallCount">
+              0
+            </strong>
+
+            <small id="smallPercent">
+              0%
+            </small>
+          </div>
+
+        </div>
+
+
+        <div class="next-section">
+
+          <div class="next-title">
+            NEXT NUMBER FREQUENCY
+          </div>
+
+          <div
+            id="nextNumbers"
+            class="number-frequency"
+          >
+            <span class="empty">
+              No data yet
+            </span>
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- IMPORT -->
+
+      <section class="import-card">
+
+        <div>
+          <span class="section-label">
+            HISTORY IMPORT
+          </span>
+
+          <h3>
+            Paste outcomes
+          </h3>
+
+          <p>
+            Example:
+            9,8,1,7,4,9
+          </p>
+        </div>
+
+        <div class="import-controls">
+
+          <input
+            id="historyInput"
+            placeholder="9,8,1,7,4..."
+          />
+
+          <button
+            id="importButton"
+          >
+            IMPORT
+          </button>
+
+        </div>
+
+        <div
+          id="importStatus"
+          class="status"
+        ></div>
+
+      </section>
+
+
+      <!-- PATTERN TABLE -->
+
+      <section class="table-card">
+
+        <div class="section-heading">
+
+          <div>
+            <span class="section-label">
+              ALL PATTERNS
+            </span>
+
+            <h2>
+              00 — 99
+            </h2>
+          </div>
+
+        </div>
+
+        <div
+          id="patternTable"
+          class="pattern-table"
+        ></div>
+
+      </section>
+
+    </main>
+
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/dashboard.js"></script>
 
 </body>
-
 </html>
