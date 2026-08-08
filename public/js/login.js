@@ -13,14 +13,16 @@ const loginMessage =
     "loginMessage"
   );
 
+
 loginForm.addEventListener(
   "submit",
-  async event => {
+  async (event) => {
+
     event.preventDefault();
 
-    const email =
+    const username =
       document
-        .getElementById("email")
+        .getElementById("username")
         .value
         .trim();
 
@@ -34,11 +36,12 @@ loginForm.addEventListener(
     loginButton.disabled = true;
 
     try {
+
       const data =
         await API.post(
           "/api/auth/login",
           {
-            email,
+            username,
             password
           }
         );
@@ -52,10 +55,12 @@ loginForm.addEventListener(
         "/dashboard";
 
     } catch (error) {
+
       loginMessage.textContent =
         error.message;
 
     } finally {
+
       loginButton.disabled = false;
     }
   }
